@@ -1,13 +1,13 @@
 class GetChatIdHandler {
-    constructor(bot) {
-        this.bot = bot;
-    };
+  constructor(bot) {
+    this.bot = bot
+  }
 
-    handler() {
-        this.bot.command("get_chat_id", async (ctx) => {
-            ctx.reply(`Айди чата: ${ctx.message.chat.id}`);
-        });
-    };
-};
+  handler() {
+    this.bot.command("get_chat_id", async (ctx) => {
+      ctx.reply(`Айди чата: ${ctx.message.chat.id}`)
+    })
+  }
+}
 
-module.exports = { GetChatIdHandler };
+module.exports = { GetChatIdHandler }

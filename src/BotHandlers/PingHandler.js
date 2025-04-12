@@ -1,41 +1,62 @@
-const axios = require("axios");
+const axios = require("axios")
 
 class PingCommand {
-    constructor(bot, mdb) {
-        this.bot = bot;
-        this.mdb = mdb;
-    };
+  constructor(bot, db) {
+    this.bot = bot
+    this.db = db
 
-    handler() {
-        this.bot.command("ping", async (ctx) => {
-            try {
-                const chatId = ctx.message.chat.id;
-                const chatServerInfo = this.mdb.collection("servers_info").find({ chatId }).toArray();
-                const chatServerStatusInfo = this.mdb.collection("ping_servers").find({ chatId }).toArray();
+    if (!this.db.servers_info) this.db.servers_info = []
+    if (!this.db.ping_servers) this.db.ping_servers = []
+  }
 
-                if (chatServerInfo.length < 1) {
-                    ctx.reply("Вы не привязали сервер или же бот пока не получил информацию об сервере");
-                    return;
-                };
+  handler() {
+    this.bot.command("ping", async (ctx) => {
+      try {
+        const chatId = ctx.message.chat.id
+        const chatIdStr = String(chatId)
 
-                if (chatServerStatusInfo.length < 1) {
-                    ctx.reply("Вы не добавили информацию об сервере!");
-                    return;
-                };
+        const chatServerInfo = this.db.servers_info.filter(item => String(item.telegramChatId) === chatIdStr)
+        const chatServerStatusInfo = this.db.ping_servers.filter(item => String(item.chatId) === chatIdStr)
 
-                const res = await axios.get(`https://api.mcsrvstat.us/bedrock/3/${chatServerStatusInfo[0].ip}:${chatServerStatusInfo[0].port}`);
+        if (chatServerInfo.length < 1) {
+          ctx.reply("Вы не привязали сервер или бот пока не получил информацию об сервере.")
+          return
+        }
 
-                if (!res.data.online) {
-                    ctx.reply(`Сервер отключён!\nАйпи и порт: ${chatServerStatusInfo[0].ip}:${chatServerStatusInfo[0].port}`);
-                    return;
-                };
+        if (chatServerStatusInfo.length < 1) {
+          ctx.reply("Вы не добавили информацию об сервере!")
+          return
+        }
 
-                ctx.reply(`Сервер запущен!\nТПС сервера: ${chatServerInfo[0].tps},\nСписок игроков: ${chatServerInfo[0].player_list.join(", ")} (${chatServerStatus.data.players.online}/${res.data.players.max}),\nАптайм сервера: ${chatServerInfo[0].server_time}\nСколько дней миру на сервере: ${chatServerInfo[0].total_days} дней,\nПоследнее сообщение в чате: ${chatServerInfo[0].last_message}`);
-            } catch (e) {
-                console.error("Ошибка класса PingCommand: ", e);
-            };
-        });
-    };
-};
+        const { ip, port } = chatServerStatusInfo[0]
+        const res = await axios.get(`https://api.mcsrvstat.us/bedrock/3/${ip}:${port}`)
 
-module.exports = { PingCommand };
+        if (!res.data.online) {
+          ctx.reply(`Сервер отключён!\nАйпи и порт: ${ip}:${port}`)
+          return
+        }
+
+        const serverData = chatServerInfo[0].data?.[0]
+
+        if (!serverData) {
+          ctx.reply("Нет данных о сервере. Подождите, пока они обновятся.")
+          return
+        }
+
+        ctx.reply(
+          `Сервер запущен!\n` +
+          `ТПС: ${serverData.tps}\n` +
+          `Игроки: ${Array.isArray(serverData.players) ? serverData.players.join(", ") : "Нет данных"} (${res.data.players.online}/${res.data.players.max})\n` +
+          `Аптайм: ${serverData.time}\n` +
+          `Дней в мире: ${serverData.day}\n` +
+          `Последнее сообщение: ${serverData.message}`
+        )
+      } catch (e) {
+        console.error("Ошибка класса PingCommand:", e)
+        ctx.reply("Ошибка при попытке получить данные сервера.")
+      }
+    })
+  }
+}
+
+module.exports = { PingCommand }
